@@ -1,0 +1,215 @@
+---
+title: "Final Project"
+author: "Samuel Hasting"
+date: "`r Sys.Date()`"
+documentclass: article
+geometry: margin=1in
+fontsize: 11pt
+output:
+  pdf_document:
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    dev: pdf
+    highlight: tango
+  html_document:
+    theme: default
+    self_contained: true
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    smart: true
+    dev: svg
+---
+
+```{r setup, include = FALSE}
+# DO NOT ALTER THIS CHUNK
+# Set knitr options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  fig.width = 5,
+  fig.asp = 0.618,
+  out.width = "70%",
+  dpi = 120,
+  fig.align = "center",
+  cache = FALSE
+)
+# Load required packages
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(infer))
+suppressPackageStartupMessages(library(modelr))
+suppressPackageStartupMessages(library(broom))
+# Load dataset
+college <- read_rds("college.rds") %>%
+  type_convert(
+    na=combine("", "NA", "PrivacySuppressed")
+  )
+# Set seed
+set.seed(98261936)
+```
+
+## Introduction
+
+Here is my proposed modelling question. Is there a positive linear relationship between admission rates(ADM_RATE) and graduation rates(C150_4)?                                                                                                                                                                                                                    The explanatory variable is admission rates and the response variable is graduation rates. Both are continuous variables. I think it's an interesting question because colleges with low selective acceptance rates are assumed to be higher prestige and better quality due to the difficulty to get in. But if we test this and find that colleges that have higher selective acceptance rates have better graduation outcomes, this can show which colleges are worthwhile to apply for. 
+
+## Preprocessing
+
+```{R}
+college %>% select(ADM_RATE, C150_4) %>% head(college, n =6)
+```
+
+We use the select function to select the specific columns we identified to answer our question. Then, we use the head function to only see the first two rows. We do this so that when we knit the table doesn't go off the page. 
+
+```{R}
+college <- rename(college, admission = ADM_RATE, completion = C150_4)
+```
+
+We have done this so this prints cleanly and have a more readable word for this variable. Withou it, we need to ADM_RATE and C150_4 in our code, every time we use it. This is used to save time essentially. 
+
+```{R}
+college %>%
+  mutate(
+    CONTROL = recode(
+        CONTROL,
+        `1` = "Public",
+        `2` = "Private nonprofit",
+        `3` = "Private for-profit",
+    )
+  )%>% select(CONTROL) %>% head(college, n = 6)
+```
+
+We've took the integers given to us in the original data set, using the mutate and re code functions, and essentially made them variable names. We did this to make it easier to understand the upcoming plots. Then, we used the select and head function to get column we want and to only see the first six rows. This is because there are at least a thousand rows and without that head function, all of them will be displayed. 
+
+## Visualization
+
+This graph has been created to show the trend and relationship between the variables. 
+
+```{R}
+ggplot(data = college) +
+  geom_point(mapping = aes(x = admission, y = completion)) +
+  geom_smooth(mapping = aes(x = admission, y = completion), method = "lm")
+  labs(
+    title = "Admissions and Graduates" 
+  )
+```
+
+We use this to show the co-variation between the two variables. Displayed in the visual, schools with lower admission rates have higher graduation rates. Schools with higher admission rates have graduation rates from 50 to 75 percent mostly. The trend line also shows that schools with lower admission rates tend to have higher graduation rates. 
+
+This graph shows us the co variation with the representation of 1,public; 2, for private and non-profit; 3,private for profit schools. 
+
+```{R}
+ggplot(college) + 
+  geom_bin2d((aes(x = admission, y = completion))) + 
+  labs(title = "admission and graduation rates") + scale_fill_viridis_c(trans = "log") + facet_wrap(~CONTROL)
+```
+
+This interpretation of these plots are that the relationship across public and private non and for profit schools are similar. 
+
+```{R}
+ggplot(college) + 
+  geom_histogram((mapping =aes(x= admission))) + labs(title = " admission rates" )
+```
+
+Here's admission rates and the count for schools with high or low admission rates. This graph is used to show that there are a lot of schools with a high admission rate. This is to show the distribution of admission rates. 
+
+This graph is the completion rate. We use this to visualize the individual distribution of this continuous variable. 
+
+```{R}
+ggplot(college) + 
+  geom_histogram((mapping =aes(x= completion))) + labs(title = "completion rates" )
+```
+
+This graph is a uni modal graph that is a symmetrical bell curve. We can see that it's different from the admission rate and the completion rate averages around 50 percent.This graph shows the average is 50 percent and that there are few schools that admit 100% of students and few schools that admit 0% of students.  
+
+## Summary Statistics
+
+```{R}
+college %>% 
+  summarize(mean = mean(admission, na.rm = TRUE),
+            median = median(admission, na.rm = TRUE),
+            sd = sd(admission, na.rm = TRUE),
+            min = min(admission, na.rm = TRUE),
+            max = max(admission, na.rm = TRUE),
+            IQR = IQR(admission, na.rm = TRUE),
+            count = n())
+
+```
+
+The summary statistics displayed. We used the summarize function to get us the mean, median, standard deviation, range, IQR and count. What we can interpret from this data is that, the average completion rate was 68%, Half of the colleges have a completion rate of below 70%. The standard deviation of 21 points means that this is the average variation from the mean. The min and max mean that some schools had a completion rate of 0 and some had 1, basically a student who didn't graduate and a student who did. The IQR means that the middle 50% of the observations fall within a range of 28.6 points. We can take away from the median, that the graph is most likely skewed left just by looking at this data. 
+
+```{R}
+college %>% 
+  summarize(mean = mean(completion, na.rm = TRUE),
+            median = median(completion, na.rm = TRUE),
+            sd = sd(completion, na.rm = TRUE),
+            min = min(completion, na.rm = TRUE),
+            IQR = IQR(completion, na.rm = TRUE),
+            max = max(completion, na.rm = TRUE),
+            count = n())
+```
+
+This is the data from admission rates, summarized using the summarize function. This data can tell us that there is a balance of admission rates in colleges. The mean is nearly 50-50, telling us that the average admission rate is 48 percent. The median is very similar, this tells us that it's indeed a balanced distribution. The standard deviation tells us that there is a mix of highly selective schools and schools with open admission. The range of 0-1 tell us that there are schools with 0 percent acceptance, which is probably an error because how can a college accept 0 students. The max of 1 tells us that there are schools that accept everyone, such as community colleges. The IQR tells us that the middle 50% of schools admit 33% to 66% of students.  
+
+## Data Analysis
+
+```{R}
+college_model <- lm(completion ~ admission, data = college)
+```
+
+We use the lm function to create the linear model using our variables. Completion being the response and admission being the explanatory variable. 
+
+```{R}
+college_model %>% tidy()
+```
+
+Shown here is the intercept, p-value and coefficient. This is found using the tidy function. The intercept is 0.76 and the slope of -.32 for admission. The p-value is 2.18 to the -49 power. 
+
+```{R}
+college_model %>% glance() %>% select(r.squared)
+```
+
+We get the r squared value using the glance and r.squared function. This r squared value means that the model is doing a poor job of capturing the variability of the response variable. 
+
+```{R}
+college_df <- college %>%
+  add_predictions(college_model) %>%
+  add_residuals(college_model)
+```
+
+```{R}
+college_df %>% ggplot() + 
+  geom_point(mapping = aes(x = completion, y = pred)) + 
+  geom_abline(slope = 1, intercept = 0) + 
+  labs(title = "Observed vs Predicted")
+```
+
+Here is the observed vs predicted plot. This shows that the model doesn't meet the assumption of linearity. We can tell because the data points aren't in a non linear trend compared to the reference line. 
+
+```{R}
+college_df %>%
+  ggplot() +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(title = "Pred vs Resid")
+```
+
+This is the residuals vs predicted plot. We can see that this does meet the assumption of constant variability because as the predicted values get bigger, the residual values stay relatively the same. 
+
+```{R}
+college_df %>%
+  ggplot() +
+  geom_qq(aes(sample = resid)) +
+  geom_qq_line(aes(sample = resid)) + 
+  labs(title = "Theoretical vs Actual")
+```
+
+This is the theoretical vs actual plot.This plot shows that the model does meet assumption of nearly normal residuals; where most of the points are near the model line. 
+
+## Conclusion
+
+In conclusion, what we can draw from these analyses is that there is a negative relationship between admission rates and graduation rates. This is coming from the first plot we created, where the graduation rate was going down as the admission rate went up and was displayed by the trend line. The analyses from the different section support each other. We can see this in the visualization and summary statistic of admission rates, showing a left skewed graph. However, the linear model only met two of the three assumptions, meaning that this model isn't trustworthy enough, and possibly needs more variables to get a better mode. This was also confirmed by the r squared value, which was close to 0. 
+
+The potentially confounding variables were zip codes, average salary of faculty, tuition and state codes. I believe these variables, if included, would give a better r squared value and meet the 3 assumptions. These findings imply that colleges that have lower admission rates have better graduation rates. But when we view the graphs with the control variable, we can see that the relationship isn't linear, indicating that there isn't a 100% relationship between admission rates and graduation rates. This tells us that admission rates are a contributing factor into graduation rates, but there are other factors that go into how high graduation rates are. 
